@@ -38,6 +38,10 @@ function M.load()
   end
 end
 
+local function ColorMyPencils(color)
+    vim.cmd.colorscheme(color)
+end
+
 local function echo_theme(name)
   vim.schedule(function()
     vim.api.nvim_echo({ { "Colorscheme: " .. name, "Normal" } }, false, {})
@@ -57,7 +61,7 @@ function M.apply(name, preview_only)
   end
 
   local ok = pcall(function()
-    vim.cmd.colorscheme(name)
+        ColorMyPencils(name)
   end)
 
   if ok then
