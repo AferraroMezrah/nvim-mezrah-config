@@ -13,17 +13,10 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
+    require("plugins.telescope"),
+
       -- Utility dependency (required by others)
   { "nvim-lua/plenary.nvim" },
-
-  -- Telescope
-  {
-    "nvim-telescope/telescope.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    config = function()
-      require("telescope").setup()
-    end,
-  },
 
   -- Treesitter
   {
