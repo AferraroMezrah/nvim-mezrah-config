@@ -13,8 +13,45 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
+      -- Utility dependency (required by others)
   { "nvim-lua/plenary.nvim" },
-  { "nvim-telescope/telescope.nvim", dependencies = { "nvim-lua/plenary.nvim" } },
+
+  -- Telescope
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("telescope").setup()
+    end,
+  },
+
+  -- Treesitter
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate", -- auto-updates parsers when running `:Lazy sync`
+    config = function()
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = { "lua", "vim", "markdown", "bash", "python" }, -- customize as needed
+        highlight = { enable = true },
+        indent = { enable = true },
+      })
+    end,
+  },
+
+  -- Harpoon (optional, but Primeagen-approved)
+  {
+    "ThePrimeagen/harpoon",
+    config = function()
+      require("harpoon").setup()
+    end,
+  },
+
+  -- Colorscheme
   { "folke/tokyonight.nvim" },
+}, {
+    rocks = {
+        enabled = false,
+        hererocks = false
+    },
 })
 
