@@ -7,6 +7,7 @@ vim.g.have_nerd_font = vim.fn.has("mac") == 1
 
 require("core.options")
 require("core.providers")
+require("core.keymaps")
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -26,5 +27,5 @@ require("lazy").setup("plugins", {
     },
 })
 
-vim.cmd.colorscheme("tokyonight")
+require("core.colorscheme").apply(require("core.colorscheme").load())
 
