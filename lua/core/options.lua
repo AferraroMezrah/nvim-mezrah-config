@@ -1,4 +1,5 @@
 -- lua/core/options.lua
+
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.wrap = false
