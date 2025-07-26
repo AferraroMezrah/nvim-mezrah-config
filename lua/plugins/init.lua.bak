@@ -1,0 +1,29 @@
+return {
+      -- Utility dependency (required by others)
+  { "nvim-lua/plenary.nvim" },
+    {
+    "nvim-tree/nvim-web-devicons",
+        enabled = vim.g.have_nerd_font,
+    },
+
+  -- Treesitter
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate", -- auto-updates parsers when running `:Lazy sync`
+    config = function()
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = { "lua", "vim", "markdown", "bash", "python" }, -- customize as needed
+        highlight = { enable = true },
+        indent = { enable = true },
+      })
+    end,
+  },
+
+  -- Colorscheme
+  { "folke/tokyonight.nvim" },
+
+    require("plugins.telescope"),
+    --require("plugins.harpoon"),
+
+} 
+

@@ -9,3 +9,4 @@ vim.opt.termguicolors = true
 vim.opt.scrolloff = 8
 vim.opt.signcolumn = "yes"
 
+vim.g.have_nerd_font = true
