@@ -42,7 +42,7 @@ local function echo_theme(name)
   end)
 end
 
-function M.apply(name)
+function M.apply(name, preview_only)
   if not name then
     name = M.themes[M.index]
   end
@@ -60,7 +60,9 @@ function M.apply(name)
 
   if ok then
     echo_theme(name)
-    save_theme(name)
+        if not preview_only then
+            save_theme(name)
+        end
   else
     vim.api.nvim_echo({ { "Failed to load theme: " .. name, "ErrorMsg" } }, false, {})
   end
