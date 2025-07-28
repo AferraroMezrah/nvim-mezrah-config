@@ -64,6 +64,17 @@ function M.apply(name, preview_only)
         ColorMyPencils(name)
   end)
 
+  -- Transparent patch
+  local transparent_groups = {
+    "Normal", "NormalNC", "NormalFloat", "FloatBorder",
+    "TelescopeNormal", "TelescopeBorder", "TelescopePromptNormal",
+    "TelescopePromptBorder", "SignColumn", "VertSplit",
+  }
+
+  for _, group in ipairs(transparent_groups) do
+    vim.api.nvim_set_hl(0, group, { bg = "none" })
+  end
+
   if ok then
     echo_theme(name)
         if not preview_only then
