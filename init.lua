@@ -28,5 +28,9 @@ require("lazy").setup("plugins", {
     },
 })
 
+if os.getenv("NVIM_IS_WORK") == "1" then
+    pcall(require, "work")
+end
+
 require("core.colorscheme").apply(require("core.colorscheme").load())
 
