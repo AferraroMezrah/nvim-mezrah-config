@@ -2,7 +2,14 @@
 
 A personal Neovim setup focused on developer productivity, clean UX, and practical defaults.  
 
-Built from scratch using `lazy.nvim` (no Kickstart), and structured for real-world coding.
+Built from scratch using `lazy.nvim` (Primeagen inspired and adapted), and structured for real-world coding.
+
+![Neovim](https://img.shields.io/badge/Neovim-0.11+-green?logo=neovim)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![Scope](https://img.shields.io/badge/Scope-Personal%20Use-blue)
+![Plugin Manager](https://img.shields.io/badge/Plugin_Manager-Lazy.nvim-blueviolet)
+![Platform](https://img.shields.io/badge/Platform-macOS_|_Linux-lightgrey)
+![Languages](https://img.shields.io/badge/Languages-ts_|_py_|_html_|_lua_|_go_|_json_|_css-ff69b4)
 
 
 ## Highlights
