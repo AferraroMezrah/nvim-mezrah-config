@@ -52,6 +52,7 @@ Built from scratch using `lazy.nvim` (Primeagen inspired and adapted), and struc
 - Optional put over highlight without overwritting buffer
 - Optional Delete to void
 
+
 ### Git Integration
 - vim-fugitive for Git commands (:G, :Gdiffsplit, :Gstatus)
 - Shortcut mappings for 2-way diff splits and quick commit staging
@@ -78,6 +79,7 @@ This is built to do work, not impress. It prioritizes:
 
 
 ## Tools Used
+
 - lazy.nvim
 - telescope.nvim
 - nvim-treesitter
@@ -85,6 +87,13 @@ This is built to do work, not impress. It prioritizes:
 - nvim-lua/plenary.nvim
 - tpope/vim-fugitive
 - ThePrimeagen/harpoon
+
+
+## Tagged Versions
+
+- **v0-core-config** – Minimal pre-LSP Neovim config
+- **v0.9.0** – Working LSP setup with core mappings
+- **v1.0.0** – Full MVP: LSP + Node QoL commands + README
 
 
 ## License
