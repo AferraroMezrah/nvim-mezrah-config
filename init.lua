@@ -21,7 +21,15 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-require("lazy").setup("plugins", {
+local lazy_plugins = {
+    { import = "plugins"},
+}
+
+if os.getenv("NVIM_IS_WORK") == "1" then
+    table.insert(lazy_plugins, { import = "work.plugins" })
+end
+
+require("lazy").setup(lazy_plugins, {
     rocks = {
         enabled = false,
         hererocks = false

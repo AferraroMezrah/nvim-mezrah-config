@@ -1,4 +1,4 @@
--- lua/config/sf.lua
+-- lua/work/config/sf.lua
 
 -- Find the path to sfdx-project.json upward from the current file's directory
 local function find_sfdx_root()
