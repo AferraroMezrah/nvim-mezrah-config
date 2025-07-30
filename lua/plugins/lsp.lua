@@ -53,8 +53,8 @@ return {
             keymap("n", "gr", vim.lsp.buf.references, opts)
             keymap("n", "gi", vim.lsp.buf.implementation, opts)
             keymap("n", "gt", vim.lsp.buf.type_definition, opts)
-            keymap("n", "K", vim.lsp.buf.hover, opts)
-            keymap("n", "<C-k>", vim.lsp.buf.signature_help, opts)
+            keymap("n", "gh", vim.lsp.buf.hover, opts)
+            keymap("n", "gH", vim.lsp.buf.signature_help, opts)
 
             -- Diagnostics
             keymap("n", "<leader>e", vim.diagnostic.open_float, opts)
