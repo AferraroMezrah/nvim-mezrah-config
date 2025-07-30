@@ -32,6 +32,7 @@ return {
                 "jsonls",
                 "clangd",
                 "gopls",
+                "rust_analyzer",
             },
             automatic_installation = true,
         })
@@ -80,6 +81,7 @@ return {
             "jsonls",
             "clangd",
             "gopls",
+            "rust_analyzer",
         }
 
         for _, server in ipairs(servers) do
