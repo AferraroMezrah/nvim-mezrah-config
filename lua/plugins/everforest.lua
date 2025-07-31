@@ -1,4 +1,5 @@
 -- plugins/everforest.lua
+
 return {
   "neanias/everforest-nvim",
   version = false,
@@ -7,7 +8,8 @@ return {
   -- Optional; default configuration will be used if setup isn't called.
   config = function()
     require("everforest").setup({
-      -- Your config here
+        transparent_background_level = 2,
     })
   end,
 }
+
