@@ -24,7 +24,7 @@ vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
 
 -- "greatest remap ever
-vim.keymap.set("x", "<leader>p", "\"_dp")
+vim.keymap.set("x", "<leader>p", "\"_dP")
 
 -- "next greateset remap ever : asbjornHaland"
 vim.keymap.set("n", "<leader>y", "\"+y")
