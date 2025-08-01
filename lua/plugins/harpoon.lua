@@ -31,7 +31,7 @@ return {
     end
 
     map("<leader>a", function() harpoon:list():add() end, "Harpoon Add File")
-    map("<leader>h", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, "Harpoon Quick Menu")
+    map("<leader>hh", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, "Harpoon Quick Menu")
 
     map("<C-j>", function() harpoon:list():select(1) end, "Harpoon to file 1")
     map("<C-k>", function() harpoon:list():select(2) end, "Harpoon to file 2")

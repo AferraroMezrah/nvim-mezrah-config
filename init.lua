@@ -30,3 +30,4 @@ require("lazy").setup("plugins", {
 })
 
 require("core.colorscheme").apply(require("core.colorscheme").load())
+
