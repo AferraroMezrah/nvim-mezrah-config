@@ -9,6 +9,7 @@ vim.filetype.add({
 
     -- Visualforce pages (can map to html for now)
     page = "html",  -- or "visualforce" if you define a custom type later
+    component = "html",  -- or "visualforce" if you define a custom type later
   },
 
   -- Optional: you could map filenames or patterns here if needed later

@@ -1,0 +1,23 @@
+-- /lua/work/plugins/apex_lsp.lua
+return {}
+-- return {
+--   "neovim/nvim-lspconfig",
+--   config = function()
+--     local lspconfig = require("lspconfig")
+--
+--     -- Manually register Apex LSP
+--     lspconfig.apex_ls = {
+--       default_config = {
+--         cmd = { "java", "-jar", vim.fn.expand("~/.local/share/apex-lsp/apex-jorje-lsp.jar") },
+--         filetypes = { "apex" },
+--         root_dir = lspconfig.util.root_pattern("sfdx-project.json", ".git"),
+--       },
+--     }
+--
+--     lspconfig.apex_ls.setup({
+--       on_attach = require("plugins.lsp").on_attach,
+--       capabilities = require("cmp_nvim_lsp").default_capabilities(),
+--     })
+--   end,
+-- }
+
