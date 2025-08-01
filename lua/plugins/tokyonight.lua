@@ -1,11 +1,20 @@
 -- plugins/tokyonight.lua
+
 return {
   "folke/tokyonight.nvim",
-  lazy = true,
-  name = "tokyonight",   -- This makes the theme work with Lazy
-  priority = 1000, -- high so it loads early if chosen
+  name = "tokyonight",
+  priority = 1000,
   config = function()
-    vim.g.tokyonight_style = "moon"
+    require("tokyonight").setup({
+      style = "moon", -- or "storm", "night", "day"
+      transparent = true, -- this is what you're looking for
+      styles = {
+        sidebars = "transparent", -- optional: makes sidebars see-through too
+        floats = "transparent",   -- optional: same for floats
+      },
+    })
+
+    vim.cmd("colorscheme tokyonight")
   end,
 }
 

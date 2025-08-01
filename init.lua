@@ -42,3 +42,4 @@ if os.getenv("NVIM_IS_WORK") == "1" then
 end
 
 require("core.colorscheme").apply(require("core.colorscheme").load())
+
