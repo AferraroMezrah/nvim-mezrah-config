@@ -61,7 +61,9 @@ M.pick = function()
 
             actions.select_default:replace(function()
                 local theme = action_state.get_selected_entry()[1]
-                themeset.apply(theme) -- save + apply
+                if vim.tbl_index_of(themeset.themes, theme) then      -- NEW
+                  themeset.apply(theme)
+                end
                 confirmed = true
                 timer:stop()
                 actions.close(prompt_bufnr)

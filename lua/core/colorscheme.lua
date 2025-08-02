@@ -34,8 +34,15 @@ function M.load()
     if f then
         local name = f:read("*l")
         f:close()
-        return name
+        if vim.tbl_index_of(M.themes, name) then
+            return name
+        end
     end
+
+    -- Missing / corrupt file → fall back to first theme and fix the file
+    local fallback = M.themes[1]
+    save_theme(fallback)
+    return fallback
 end
 
 local function ColorMyPencils(color)
@@ -49,16 +56,12 @@ local function echo_theme(name)
 end
 
 function M.apply(name, preview_only)
-    if not name then
-        name = M.themes[M.index]
+    if not vim.tbl_index_of(M.themes, name) then
+        -- guard against typos / nil
+        name = M.themes[1]
     end
 
-    for i, theme in ipairs(M.themes) do
-        if theme == name then
-            M.index = i
-            break
-        end
-    end
+    M.index = vim.tbl_index_of(M.themes, name)
 
     local ok = pcall(function()
         ColorMyPencils(name)
@@ -75,8 +78,13 @@ function M.apply(name, preview_only)
 end
 
 function M.cycle()
-    M.index = (M.index % #M.themes) + 1
+    M.index = ((M.index or 1) % #M.themes) + 1
     M.apply(M.themes[M.index])
+end
+
+function M.safe_startup()
+    local name = M.load()
+    M.apply(name, true)
 end
 
 return M
