@@ -6,11 +6,11 @@ local opts = { noremap = true, silent = true }
 vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
 
 vim.keymap.set("n", "<leader>ut", function()
-  require("core.colorscheme").cycle()
+    require("core.colorscheme").cycle()
 end, { desc = "Cycle theme" })
 
 vim.keymap.set("n", "<leader>fp", function()
-  require("core.colorscheme_picker").pick()
+    require("core.colorscheme_picker").pick()
 end, { desc = "Pick colorscheme with preview" })
 
 -- Primeagen inspired
@@ -48,3 +48,4 @@ vim.keymap.set("n", "<M-H>", "<cmd>silent !tmux neww tmux-sessionizer -s 0<CR>")
 -- vim.keymap.set("n", "<leader>k", "<cmd>lnext<CR>zz")
 
 vim.keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
+

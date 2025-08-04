@@ -41,5 +41,5 @@ if os.getenv("NVIM_IS_WORK") == "1" then
     pcall(require, "work")
 end
 
-require("core.colorscheme").apply(require("core.colorscheme").load())
+require("core.colorscheme").safe_startup()
 
