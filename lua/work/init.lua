@@ -8,3 +8,5 @@ pcall(require, "work.config.filetypes")
 -- pcall(require, "work.keymaps")
 
 vim.opt.fixendofline = false
+vim.opt.colorcolumn = "120"
+
