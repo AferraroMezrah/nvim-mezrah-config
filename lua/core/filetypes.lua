@@ -6,6 +6,7 @@ vim.filetype.add({
     -- Apex classes and triggers
     cls = "apex",
     trigger = "apex",
+    apex = "apex",
 
     -- Visualforce pages (can map to html for now)
     page = "html",  -- or "visualforce" if you define a custom type later
