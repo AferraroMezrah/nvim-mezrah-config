@@ -65,6 +65,7 @@ return {
                 "clangd",
                 "gopls",
                 "rust_analyzer",
+                "apex_ls",
             },
             automatic_enable = false,
         })
@@ -74,6 +75,8 @@ return {
         -------------------------------------------------
         local lspconfig = require("lspconfig")
         local capabilities = require("cmp_nvim_lsp").default_capabilities()
+        local util = require("lspconfig.util")
+        local on_attach = require("plugins.lsp").on_attach
 
         local servers = {
             "lua_ls",
@@ -85,6 +88,7 @@ return {
             "clangd",
             "gopls",
             "rust_analyzer",
+            "apex_ls",
         }
 
         for _, server in ipairs(servers) do
@@ -92,7 +96,7 @@ return {
                 on_attach = on_attach,
                 capabilities = capabilities,
             }
-            
+
             if server == "lua_ls" then
                 opts.settings = {
                     Lua = {
@@ -112,7 +116,19 @@ return {
                 }
             end
 
-            require("lspconfig")[server].setup(opts)
+            if server == "apex_ls" then
+                local jar = vim.fn.expand("~/.local/share/apex-lsp/apex-jorje-lsp.jar")
+                if vim.fn.filereadable(jar) == 1 then
+                    opts.cmd = { "java", "-jar", jar }
+                else
+                    vim.notify("Apex LSP jar not found at: " .. jar, vim.log.levels.WARN)
+                end
+                opts.filetypes = { "apex" }
+                opts.root_dir  = util.root_pattern("sfdx-project.json", "project-scratch-def.json", ".git")
+                -- Optional: opts.settings = { apex = { enableSemanticErrors = true } }
+            end
+
+            lspconfig[server].setup(opts)
         end
 
         -------------------------------------------------

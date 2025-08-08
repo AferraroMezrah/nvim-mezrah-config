@@ -9,6 +9,7 @@ vim.g.have_nerd_font = vim.fn.has("mac") == 1
 require("core.options")
 require("core.providers")
 require("core.keymaps")
+require("core.filetypes")
 require("core.autocmds.node")
 
 -- Bootstrap lazy.nvim
@@ -26,10 +27,6 @@ local lazy_plugins = {
     { import = "plugins"},
 }
 
-if os.getenv("NVIM_IS_WORK") == "1" then
-    table.insert(lazy_plugins, { import = "work.plugins" })
-end
-
 require("lazy").setup(lazy_plugins, {
     rocks = {
         enabled = false,
@@ -37,9 +34,7 @@ require("lazy").setup(lazy_plugins, {
     },
 })
 
-if os.getenv("NVIM_IS_WORK") == "1" then
-    pcall(require, "work")
-end
-
 require("core.colorscheme").safe_startup()
+
+require("core.sf")
 
