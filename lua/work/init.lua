@@ -2,9 +2,9 @@
 
 pcall(require, "work.config.sf")
 pcall(require, "work.config.filetypes")
+pcall(require, "work.lsp")
 
 -- future additions:
--- pcall(require, "work.lsp")
 -- pcall(require, "work.keymaps")
 
 vim.opt.fixendofline = false
