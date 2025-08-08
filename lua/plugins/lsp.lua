@@ -34,7 +34,7 @@ return {
                 "gopls",
                 "rust_analyzer",
             },
-            automatic_installation = true,
+            automatic_enable = false,
         })
 
         -------------------------------------------------
@@ -85,10 +85,31 @@ return {
         }
 
         for _, server in ipairs(servers) do
-            lspconfig[server].setup({
+            local opts = {
                 on_attach = on_attach,
                 capabilities = capabilities,
-            })
+            }
+            
+            if server == "lua_ls" then
+                opts.settings = {
+                    Lua = {
+                        runtime = {
+                            version = "LuaJIT",
+                        },
+                        diagnostics = {
+                            globals = { "vim" },
+                        },
+                        workspace = {
+                            library = vim.api.nvim_get_runtime_file("", true),
+                        },
+                        telemetry = {
+                            enable = false,
+                        },
+                    },
+                }
+            end
+
+            require("lspconfig")[server].setup(opts)
         end
 
         -------------------------------------------------
