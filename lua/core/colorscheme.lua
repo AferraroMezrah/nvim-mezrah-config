@@ -17,6 +17,7 @@ M.themes = {
     "catppuccin",
     "everforest",
     "rose-pine",
+    "sonokai",
 }
 
 local theme_file = vim.fn.stdpath("data") .. "/theme.txt"
