@@ -38,3 +38,5 @@ vim.opt.colorcolumn = "80"
 
 vim.g.have_nerd_font = true
 
+vim.opt.fixeol = false
+

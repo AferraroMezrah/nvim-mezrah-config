@@ -69,7 +69,6 @@ function M.apply(name, preview_only)
     end)
 
     if ok then
-        echo_theme(name)
         if not preview_only then
             save_theme(name)
         end

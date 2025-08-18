@@ -65,7 +65,6 @@ return {
                 "clangd",
                 "gopls",
                 "rust_analyzer",
-                "apex_ls",
             },
             automatic_enable = false,
         })
