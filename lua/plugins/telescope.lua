@@ -39,6 +39,13 @@ return {
         vim.keymap.set('n', '<leader>pWs', function()
             builtin.grep_string { search = vim.fn.expand '<cWORD>' }
         end, { desc = '[P]roject [W]ORD under cursor' })
+        vim.keymap.set('n', '<leader>pwS', function()
+            builtin.grep_string { search = vim.fn.expand('<cword>'):lower() }
+        end, { desc = '[P]roject [W]ord under cursor (case insensitive)' })
+
+        vim.keymap.set('n', '<leader>pWS', function()
+            builtin.grep_string { search = vim.fn.expand('<cWORD>'):lower() }
+        end, { desc = '[P]roject [W]ORD under cursor (case insensitive)' })
         vim.keymap.set('n', '<leader>ps', builtin.live_grep, { desc = '[P]roject [S]earch' })
         vim.keymap.set('n', '<leader>vh', builtin.help_tags, { desc = '[V]im [H]elp' })
         vim.keymap.set('n', '<leader>/', function()

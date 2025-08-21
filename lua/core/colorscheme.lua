@@ -50,12 +50,6 @@ local function ColorMyPencils(color)
     vim.cmd.colorscheme(color)
 end
 
-local function echo_theme(name)
-    vim.schedule(function()
-        vim.api.nvim_echo({ { "Colorscheme: " .. name, "Normal" } }, false, {})
-    end)
-end
-
 function M.apply(name, preview_only)
     if not vim.tbl_index_of(M.themes, name) then
         -- guard against typos / nil
