@@ -20,6 +20,11 @@ return {
         local builtin = require('telescope.builtin')
 
         telescope.setup {
+            defaults = {
+                path_display = { "smart" },
+                sorting_strategy = "ascending",
+                layout_config = { width = 0.9 },
+            },
             extensions = {
                 ['ui-select'] = {
                     require('telescope.themes').get_dropdown(),
