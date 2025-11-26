@@ -5,7 +5,7 @@ local M = {}
 
 -- === Configuration ===========================================================
 -- Prefer env var (CI/other shells) but fall back to your sandbox alias.
-local TARGET_ORG = os.getenv("SF_TARGET_ORG") or "Prosandbox"
+local TARGET_ORG = os.getenv("SF_TARGET_ORG") or "prosandbox"
 
 -- Default DX output directories (relative to project root)
 local DX_DIRS = {
@@ -87,6 +87,101 @@ local function deploy_current_file()
   }, " ")
   run_from_root(cmd)
 end
+
+-- === Apex / SOQL runners =====================================================
+local function run_apex_file(opts)
+  opts = opts or {}
+  local root = get_project_root_or_err()
+  if not root then return end
+
+  local file = vim.fn.expand('%:p')
+  if not file:match('%.apex$') then
+    vim.notify('Current file is not a .apex script', vim.log.levels.ERROR)
+    return
+  end
+
+  local function actually_run_apex(target_org)
+    local cmd = table.concat({
+      "sf apex run",
+      "--file " .. sh_escape(file),
+      "--target-org " .. sh_escape(target_org),
+    }, " ")
+    run_from_root(cmd)
+  end
+
+  if opts.prod then
+    -- Extra confirmation for prod
+    vim.ui.input({
+      prompt = "Type PROD to run this Apex script in production: ",
+    }, function(answer)
+      if answer ~= "PROD" then
+        vim.notify("Cancelled PROD Apex run", vim.log.levels.WARN)
+        return
+      end
+      vim.notify("Running Apex in PROD (--target-org PROD)", vim.log.levels.WARN)
+      actually_run_apex("PROD")
+    end)
+  else
+    actually_run_apex(TARGET_ORG)
+  end
+end
+
+-- local function run_apex_file(opts)
+--   opts = opts or {}
+--   local root = get_project_root_or_err()
+--   if not root then return end
+--
+--   local file = vim.fn.expand('%:p')
+--   if not file:match('%.apex$') then
+--     vim.notify('Current file is not a .apex script', vim.log.levels.ERROR)
+--     return
+--   end
+--
+--   local cmd_parts = {
+--     "sf apex run",
+--     "--file " .. sh_escape(file),
+--   }
+--
+--   if opts.prod then
+--     vim.notify('SF: Running current .apex in PROD (--target-org PROD)', vim.log.levels.WARN)
+--     table.insert(cmd_parts, "--target-org PROD")
+--   else
+--     table.insert(cmd_parts, "--target-org " .. sh_escape(TARGET_ORG))
+--   end
+--
+--   local cmd = table.concat(cmd_parts, " ")
+--   run_from_root(cmd)
+-- end
+--
+-- local function run_soql_file(opts)
+--   opts = opts or {}
+--   local root = get_project_root_or_err()
+--   if not root then return end
+--
+--   local file = vim.fn.expand('%:p')
+--   if not file:match('%.soql$') then
+--     vim.notify('Current file is not a .soql query', vim.log.levels.ERROR)
+--     return
+--   end
+--
+--   local result_format = opts.result_format or "human"
+--
+--   local cmd_parts = {
+--     "sf data query",
+--     "--file " .. sh_escape(file),
+--     "--result-format " .. result_format,
+--   }
+--
+--   if opts.prod then
+--     vim.notify('SF: Running current .soql in PROD (--target-org PROD)', vim.log.levels.WARN)
+--     table.insert(cmd_parts, "--target-org PROD")
+--   else
+--     table.insert(cmd_parts, "--target-org " .. sh_escape(TARGET_ORG))
+--   end
+--
+--   local cmd = table.concat(cmd_parts, " ")
+--   run_from_root(cmd)
+-- end
 
 -- === Generators ==============================================================
 
@@ -217,7 +312,25 @@ end
 -- Deploy
 vim.api.nvim_create_user_command('Deploy', deploy_current_file, {})
 vim.api.nvim_create_user_command('Wd', function() vim.cmd('write'); deploy_current_file() end, {})
-vim.keymap.set('n', '<leader>sd', deploy_current_file, { desc = 'SF: Deploy current file' })
+
+-- Apex runners
+vim.api.nvim_create_user_command('SfApexRun', function()
+    run_apex_file({ prod = false })
+end, {})
+
+-- vim.api.nvim_create_user_command('SfApexRunProd', function()
+--     run_apex_file({ prod = true })
+-- end, {})
+
+-- SOQL runners
+vim.api.nvim_create_user_command('SfSoqlRun', function(opts)
+  -- Allow :SfSoqlRun human/csv/json if you feel like it
+  run_soql_file({ prod = false, result_format = opts.args ~= "" and opts.args or "human" })
+end, { nargs = "?" })
+
+-- vim.api.nvim_create_user_command('SfSoqlRunProd', function(opts)
+--   run_soql_file({ prod = true, result_format = opts.args ~= "" and opts.args or "human" })
+-- end, { nargs = "?" })
 
 -- Generators
 vim.api.nvim_create_user_command('SfGenClass', gen_apex_class, {})
@@ -241,8 +354,24 @@ vim.api.nvim_create_user_command('SfTestMethod', function(opts)
   end
 end, { nargs = "?" })
 
+vim.keymap.set('n', '<leader>sd', deploy_current_file, { desc = 'SF: Deploy current file' })
 vim.keymap.set('n', '<leader>st', test_current_class,  { desc = 'SF: Test current class (coverage)' })
 vim.keymap.set('n', '<leader>sm', test_current_method, { desc = 'SF: Test method under cursor (coverage)' })
+vim.keymap.set('n', '<leader>sa', function()
+  run_apex_file({ prod = false })
+end, { desc = 'SF: Run current .apex in sandbox' })
+
+vim.keymap.set('n', '<leader>sA', function()
+  run_apex_file({ prod = true })
+end, { desc = 'SF: Run current .apex in PROD' })
+
+vim.keymap.set('n', '<leader>sq', function()
+  run_soql_file({ prod = false })
+end, { desc = 'SF: Run current .soql in sandbox' })
+
+vim.keymap.set('n', '<leader>sQ', function()
+  run_soql_file({ prod = true })
+end, { desc = 'SF: Run current .soql in PROD' })
 
 return M
 
