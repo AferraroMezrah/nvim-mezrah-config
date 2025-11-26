@@ -68,6 +68,8 @@ return {
         vim.keymap.set('n', '<leader>fn', function()
             builtin.find_files { cwd = vim.fn.stdpath 'config' }
         end, { desc = '[F]ind [N]eovim config files' })
+        vim.keymap.set('n', '<leader>gb', builtin.git_branches, { desc = '[G]it [B]ranches' })
+
     end,
 }
 
