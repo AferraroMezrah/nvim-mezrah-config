@@ -48,7 +48,6 @@ return {
         "L3MON4D3/LuaSnip",
         "saadparwaiz1/cmp_luasnip",
     },
-    on_attach = M.on_attach,
     config = function()
         -------------------------------------------------
         -- Mason Setup
@@ -72,62 +71,115 @@ return {
         -------------------------------------------------
         -- LSP Setup
         -------------------------------------------------
-        local lspconfig = require("lspconfig")
         local capabilities = require("cmp_nvim_lsp").default_capabilities()
         local util = require("lspconfig.util")
-        local on_attach = require("plugins.lsp").on_attach
 
-        local servers = {
-            "lua_ls",
-            "pyright",
-            "ts_ls",
-            "html",
-            "cssls",
-            "jsonls",
-            "clangd",
-            "gopls",
-            "rust_analyzer",
-            "apex_ls",
-        }
+        -- Helper to create FileType autocommand for LSP
+        local function setup_lsp(name, config)
+            -- Merge with standard settings
+            config.capabilities = capabilities
+            config.on_attach = M.on_attach
 
-        for _, server in ipairs(servers) do
-            local opts = {
-                on_attach = on_attach,
-                capabilities = capabilities,
-            }
+            -- Register the config
+            vim.lsp.config(name, config)
 
-            if server == "lua_ls" then
-                opts.settings = {
-                    Lua = {
-                        runtime = {
-                            version = "LuaJIT",
-                        },
-                        diagnostics = {
-                            globals = { "vim" },
-                        },
-                        workspace = {
-                            library = vim.api.nvim_get_runtime_file("", true),
-                        },
-                        telemetry = {
-                            enable = false,
-                        },
+            -- Create FileType autocommand
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = config.filetypes,
+                callback = function(ev)
+                    -- Find root directory
+                    local root
+                    if config.root_dir then
+                        local fname = vim.api.nvim_buf_get_name(ev.buf)
+                        root = config.root_dir(fname, ev.buf)
+                    end
+                    root = root or vim.fn.getcwd()
+
+                    -- Start the LSP client (reuses if already running for this root)
+                    vim.lsp.start({
+                        name = name,
+                        cmd = config.cmd,
+                        root_dir = root,
+                    })
+                end,
+            })
+        end
+
+        -- Configure each server
+        setup_lsp("lua_ls", {
+            cmd = { "lua-language-server" },
+            filetypes = { "lua" },
+            root_dir = util.root_pattern(".luarc.json", ".luarc.jsonc", ".luacheckrc", ".stylua.toml", "stylua.toml", "selene.toml", "selene.yml", ".git"),
+            settings = {
+                Lua = {
+                    runtime = { version = "LuaJIT" },
+                    diagnostics = { globals = { "vim" } },
+                    workspace = {
+                        library = vim.api.nvim_get_runtime_file("", true),
                     },
-                }
-            end
+                    telemetry = { enable = false },
+                },
+            },
+        })
 
-            if server == "apex_ls" then
-                local jar = vim.fn.expand("~/.local/share/apex-lsp/apex-jorje-lsp.jar")
-                if vim.fn.filereadable(jar) == 1 then
-                    opts.cmd = { "java", "-jar", jar }
-                else
-                    vim.notify("Apex LSP jar not found at: " .. jar, vim.log.levels.WARN)
-                end
-                opts.filetypes = { "apex" }
-                opts.root_dir  = util.root_pattern("sfdx-project.json", "project-scratch-def.json", ".git")
-                -- Optional: opts.settings = { apex = { enableSemanticErrors = true } }
-            end
+        setup_lsp("pyright", {
+            cmd = { "pyright-langserver", "--stdio" },
+            filetypes = { "python" },
+            root_dir = util.root_pattern("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile", "pyrightconfig.json", ".git"),
+        })
 
-            lspconfig[server].setup(opts)
+        setup_lsp("ts_ls", {
+            cmd = { "typescript-language-server", "--stdio" },
+            filetypes = { "javascript", "javascriptreact", "javascript.jsx", "typescript", "typescriptreact", "typescript.tsx" },
+            root_dir = util.root_pattern("tsconfig.json", "jsconfig.json", "package.json", ".git"),
+        })
+
+        setup_lsp("html", {
+            cmd = { "vscode-html-language-server", "--stdio" },
+            filetypes = { "html", "templ" },
+            root_dir = util.root_pattern("package.json", ".git"),
+        })
+
+        setup_lsp("cssls", {
+            cmd = { "vscode-css-language-server", "--stdio" },
+            filetypes = { "css", "scss", "less" },
+            root_dir = util.root_pattern("package.json", ".git"),
+        })
+
+        setup_lsp("jsonls", {
+            cmd = { "vscode-json-language-server", "--stdio" },
+            filetypes = { "json", "jsonc" },
+            root_dir = util.root_pattern(".git"),
+        })
+
+        setup_lsp("clangd", {
+            cmd = { "clangd" },
+            filetypes = { "c", "cpp", "objc", "objcpp", "cuda", "proto" },
+            root_dir = util.root_pattern("compile_commands.json", "compile_flags.txt", ".git"),
+        })
+
+        setup_lsp("gopls", {
+            cmd = { "gopls" },
+            filetypes = { "go", "gomod", "gowork", "gotmpl" },
+            root_dir = util.root_pattern("go.work", "go.mod", ".git"),
+        })
+
+        setup_lsp("rust_analyzer", {
+            cmd = { "rust-analyzer" },
+            filetypes = { "rust" },
+            root_dir = util.root_pattern("Cargo.toml", "rust-project.json", ".git"),
+        })
+
+        -- Apex LSP (with jar check)
+        local apex_jar = vim.fn.expand("~/.local/share/apex-lsp/apex-jorje-lsp.jar")
+        if vim.fn.filereadable(apex_jar) == 1 then
+            setup_lsp("apex_ls", {
+                cmd = { "java", "-jar", apex_jar },
+                filetypes = { "apex" },
+                root_dir = util.root_pattern("sfdx-project.json", "project-scratch-def.json", ".git"),
+            })
+        else
+            vim.notify("Apex LSP jar not found at: " .. apex_jar, vim.log.levels.WARN)
         end
 
         -------------------------------------------------

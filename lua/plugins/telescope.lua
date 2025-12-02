@@ -37,6 +37,9 @@ return {
 
         -- Keymaps
         vim.keymap.set('n', '<leader>pf', builtin.find_files, { desc = '[P]roject [F]iles' })
+        vim.keymap.set('n', '<leader>pF', function()
+          builtin.find_files { no_ignore = true }
+        end, { desc = '[P]roject [F]iles (all, incl ignored)' })
         vim.keymap.set('n', '<leader>gf', builtin.git_files, { desc = '[G]it [F]iles' })
         vim.keymap.set('n', '<leader>pws', function()
             builtin.grep_string { search = vim.fn.expand '<cword>' }
