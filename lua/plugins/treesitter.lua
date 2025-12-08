@@ -29,7 +29,11 @@ return {
                 "javascript","typescript","go","c","rust",
                 "apex", -- add
             },
-            highlight = { enable = true, additional_vim_regex_highlighting = false },
+            highlight = {
+                enable = true,
+                disable = { "python" },
+                additional_vim_regex_highlighting = { "python" },
+            },
             indent = { enable = true, disable = { "apex" } }, -- be explicit; apex likely has no indent module
             sync_install = false,
             auto_install = false, -- avoid auto failures blocking startup; install manually once
