@@ -20,7 +20,7 @@ M.on_attach = function(_, bufnr)
     keymap("n", "<leader>e", vim.diagnostic.open_float, opts)
     keymap("n", "[d",         vim.diagnostic.goto_prev,  opts)
     keymap("n", "]d",         vim.diagnostic.goto_next,  opts)
-    keymap("n", "<leader>q", vim.diagnostic.setloclist,  opts)
+    keymap("n", "<leader>q", vim.diagnostic.setqflist,  opts)
 
     -- Actions
     keymap("n", "<leader>ca", vim.lsp.buf.code_action, opts)
