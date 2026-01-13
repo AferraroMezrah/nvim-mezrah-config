@@ -21,7 +21,6 @@ return {
             end
         end
 
-        -- Your normal setup
         require("nvim-treesitter.configs").setup({
             ensure_installed = {
                 "lua","vim","markdown","markdown_inline",
@@ -38,6 +37,8 @@ return {
             sync_install = false,
             auto_install = false, -- avoid auto failures blocking startup; install manually once
         })
+
+        vim.treesitter.language.register("html", "visualforce")
     end,
 }
 

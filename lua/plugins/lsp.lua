@@ -1,35 +1,43 @@
 -- plugins/lsp.lua
 
--- 1. Put on_attach in file scope so everyone can see it ------------
 local M = {}
 
-M.on_attach = function(_, bufnr)
-    local opts    = { buffer = bufnr, noremap = true, silent = true }
-    local keymap  = vim.keymap.set
+-- Baseline on_attach for ALL servers (no special cases)
+function M.base_on_attach(client, bufnr)
+    local opts   = { buffer = bufnr, noremap = true, silent = true }
+    local keymap = vim.keymap.set
 
     -- Core navigation
-    keymap("n", "gd", vim.lsp.buf.definition,         opts)
-    keymap("n", "gD", vim.lsp.buf.declaration,        opts)
-    keymap("n", "gr", vim.lsp.buf.references,         opts)
-    keymap("n", "gi", vim.lsp.buf.implementation,     opts)
-    keymap("n", "gy", vim.lsp.buf.type_definition,    opts)
-    keymap("n", "gh", vim.lsp.buf.hover,              opts)
-    keymap("n", "gH", vim.lsp.buf.signature_help,     opts)
+    keymap("n", "gd", vim.lsp.buf.definition,      opts)
+    keymap("n", "gD", vim.lsp.buf.declaration,     opts)
+    keymap("n", "gr", vim.lsp.buf.references,      opts)
+    keymap("n", "gi", vim.lsp.buf.implementation,  opts)
+    keymap("n", "gy", vim.lsp.buf.type_definition, opts)
+    keymap("n", "gh", vim.lsp.buf.hover,           opts)
+    keymap("n", "gH", vim.lsp.buf.signature_help,  opts)
 
     -- Diagnostics
     keymap("n", "<leader>e", vim.diagnostic.open_float, opts)
-    keymap("n", "[d",         vim.diagnostic.goto_prev,  opts)
-    keymap("n", "]d",         vim.diagnostic.goto_next,  opts)
-    keymap("n", "<leader>q", vim.diagnostic.setqflist,  opts)
+    keymap("n", "[d",        vim.diagnostic.goto_prev,  opts)
+    keymap("n", "]d",        vim.diagnostic.goto_next,  opts)
+    keymap("n", "<leader>q", vim.diagnostic.setqflist, opts)
 
     -- Actions
     keymap("n", "<leader>ca", vim.lsp.buf.code_action, opts)
     keymap("n", "<leader>rn", vim.lsp.buf.rename,      opts)
-    keymap("n", "<leader>f",  function()
-        vim.lsp.buf.format { async = true }
+    keymap("n", "<leader>f", function()
+        vim.lsp.buf.format({ async = true })
     end, opts)
 end
 
+-- Server-specific on_attach for HTML:
+-- In Visualforce buffers, let visualforce_ls own completion to avoid duplicates.
+local function html_on_attach(client, bufnr)
+    if vim.bo[bufnr].filetype == "visualforce" then
+        client.server_capabilities.completionProvider = nil
+    end
+    M.base_on_attach(client, bufnr)
+end
 
 return {
     "neovim/nvim-lspconfig",
@@ -64,6 +72,7 @@ return {
                 "clangd",
                 "gopls",
                 "rust_analyzer",
+                "visualforce_ls",
             },
             automatic_enable = false,
         })
@@ -78,7 +87,8 @@ return {
         local function setup_lsp(name, config)
             -- Merge with standard settings
             config.capabilities = capabilities
-            config.on_attach = M.on_attach
+            -- Use server-specific on_attach if provided, else base
+            config.on_attach = config.on_attach or M.base_on_attach
 
             -- Register the config
             vim.lsp.config(name, config)
@@ -89,14 +99,13 @@ return {
                 callback = function(ev)
                     local fname = vim.api.nvim_buf_get_name(ev.buf)
 
-                    -- Find root directory
                     local root
                     if config.root_dir then
                         root = config.root_dir(fname, ev.buf)
                     end
                     root = root or vim.fs.dirname(fname)
 
-                    -- Start the LSP client (reuses if already running for this root)
+                    -- Start the LSP client with the FULL config
                     vim.lsp.start(vim.tbl_extend("force", config, {
                         name = name,
                         root_dir = root,
@@ -105,18 +114,23 @@ return {
             })
         end
 
-        -- Configure each server
+        -------------------------------------------------
+        -- Servers
+        -------------------------------------------------
         setup_lsp("lua_ls", {
             cmd = { "lua-language-server" },
             filetypes = { "lua" },
-            root_dir = util.root_pattern(".luarc.json", ".luarc.jsonc", ".luacheckrc", ".stylua.toml", "stylua.toml", "selene.toml", "selene.yml", ".git"),
+            root_dir = util.root_pattern(
+                ".luarc.json", ".luarc.jsonc", ".luacheckrc",
+                ".stylua.toml", "stylua.toml",
+                "selene.toml", "selene.yml",
+                ".git"
+            ),
             settings = {
                 Lua = {
                     runtime = { version = "LuaJIT" },
                     diagnostics = { globals = { "vim" } },
-                    workspace = {
-                        library = vim.api.nvim_get_runtime_file("", true),
-                    },
+                    workspace = { library = vim.api.nvim_get_runtime_file("", true) },
                     telemetry = { enable = false },
                 },
             },
@@ -125,7 +139,10 @@ return {
         setup_lsp("pyright", {
             cmd = { "pyright-langserver", "--stdio" },
             filetypes = { "python" },
-            root_dir = util.root_pattern("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile", "pyrightconfig.json", ".git"),
+            root_dir = util.root_pattern(
+                "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt",
+                "Pipfile", "pyrightconfig.json", ".git"
+            ),
         })
 
         setup_lsp("ts_ls", {
@@ -134,10 +151,12 @@ return {
             root_dir = util.root_pattern("tsconfig.json", "jsconfig.json", "package.json", ".git"),
         })
 
+        -- HTML server: attaches to visualforce too, but uses html_on_attach to disable completion there
         setup_lsp("html", {
             cmd = { "vscode-html-language-server", "--stdio" },
-            filetypes = { "html", "templ" },
-            root_dir = util.root_pattern("package.json", ".git"),
+            filetypes = { "html", "templ", "visualforce" },
+            root_dir = util.root_pattern("package.json", "sfdx-project.json", ".git"),
+            on_attach = html_on_attach,
         })
 
         setup_lsp("cssls", {
@@ -170,7 +189,13 @@ return {
             root_dir = util.root_pattern("Cargo.toml", "rust-project.json", ".git"),
         })
 
-        -- Apex LSP (with jar check)
+        setup_lsp("visualforce_ls", {
+            cmd = { "visualforce-language-server", "--stdio" },
+            filetypes = { "visualforce" },
+            root_dir = util.root_pattern("sfdx-project.json", ".git"),
+        })
+
+        -- Apex LSP (Mason jar)
         local mason_apex_jar = vim.fn.expand(
             "~/.local/share/nvim/mason/packages/apex-language-server/extension/dist/apex-jorje-lsp.jar"
         )
@@ -197,18 +222,18 @@ return {
                 end,
             },
             mapping = cmp.mapping.preset.insert({
-                ['<C-p>'] = cmp.mapping.select_prev_item(),
-                ['<C-n>'] = cmp.mapping.select_next_item(),
-                ['<C-y>'] = cmp.mapping.confirm({ select = true }),
+                ["<C-p>"] = cmp.mapping.select_prev_item(),
+                ["<C-n>"] = cmp.mapping.select_next_item(),
+                ["<C-y>"] = cmp.mapping.confirm({ select = true }),
                 ["<C-Space>"] = cmp.mapping.complete(),
             }),
             sources = cmp.config.sources({
                 { name = "nvim_lsp" },
                 { name = "luasnip" },
             }, {
-                { name = "buffer" },
-                { name = "path" },
-            }),
+                    { name = "buffer" },
+                    { name = "path" },
+                }),
         })
     end,
 }
