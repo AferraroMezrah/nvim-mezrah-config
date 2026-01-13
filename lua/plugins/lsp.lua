@@ -87,20 +87,20 @@ return {
             vim.api.nvim_create_autocmd("FileType", {
                 pattern = config.filetypes,
                 callback = function(ev)
+                    local fname = vim.api.nvim_buf_get_name(ev.buf)
+
                     -- Find root directory
                     local root
                     if config.root_dir then
-                        local fname = vim.api.nvim_buf_get_name(ev.buf)
                         root = config.root_dir(fname, ev.buf)
                     end
-                    root = root or vim.fn.getcwd()
+                    root = root or vim.fs.dirname(fname)
 
                     -- Start the LSP client (reuses if already running for this root)
-                    vim.lsp.start({
+                    vim.lsp.start(vim.tbl_extend("force", config, {
                         name = name,
-                        cmd = config.cmd,
                         root_dir = root,
-                    })
+                    }))
                 end,
             })
         end
@@ -171,15 +171,17 @@ return {
         })
 
         -- Apex LSP (with jar check)
-        local apex_jar = vim.fn.expand("~/.local/share/apex-lsp/apex-jorje-lsp.jar")
-        if vim.fn.filereadable(apex_jar) == 1 then
+        local mason_apex_jar = vim.fn.expand(
+            "~/.local/share/nvim/mason/packages/apex-language-server/extension/dist/apex-jorje-lsp.jar"
+        )
+        if vim.fn.filereadable(mason_apex_jar) == 1 then
             setup_lsp("apex_ls", {
-                cmd = { "java", "-jar", apex_jar },
+                cmd = { "java", "-jar", mason_apex_jar },
                 filetypes = { "apex" },
                 root_dir = util.root_pattern("sfdx-project.json", "project-scratch-def.json", ".git"),
             })
         else
-            vim.notify("Apex LSP jar not found at: " .. apex_jar, vim.log.levels.WARN)
+            vim.notify("Mason Apex jar not found at: " .. mason_apex_jar, vim.log.levels.WARN)
         end
 
         -------------------------------------------------
