@@ -56,15 +56,11 @@ return {
         "williamboman/mason-lspconfig.nvim",
 
         -- Completion engine
-        "hrsh7th/nvim-cmp",
+        -- "hrsh7th/nvim-cmp",
         "hrsh7th/cmp-nvim-lsp",
-        "hrsh7th/cmp-buffer",
-        "hrsh7th/cmp-path",
-        "hrsh7th/cmp-cmdline",
-
-        -- Snippet support
-        "L3MON4D3/LuaSnip",
-        "saadparwaiz1/cmp_luasnip",
+        -- "hrsh7th/cmp-buffer",
+        -- "hrsh7th/cmp-path",
+        -- "hrsh7th/cmp-cmdline",
     },
     config = function()
         -------------------------------------------------
@@ -93,29 +89,42 @@ return {
         local capabilities = require("cmp_nvim_lsp").default_capabilities()
         local util = require("lspconfig.util")
 
-        -- Helper to create FileType autocommand for LSP
+        -- Helper to start/attach LSP for matching filetypes when opening real files.
         local function setup_lsp(name, config)
-            -- Merge with standard settings
             config.capabilities = capabilities
-            -- Use server-specific on_attach if provided, else base
             config.on_attach = config.on_attach or M.base_on_attach
 
-            -- Register the config
+            -- Register server config (Neovim 0.11+ API)
             vim.lsp.config(name, config)
 
-            -- Create FileType autocommand
-            vim.api.nvim_create_autocmd("FileType", {
-                pattern = config.filetypes,
+            vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
                 callback = function(ev)
-                    local fname = vim.api.nvim_buf_get_name(ev.buf)
+                    local bufnr = ev.buf
+                    local ft = vim.bo[bufnr].filetype
+                    if not ft or ft == "" then return end
+
+                    -- Only run for filetypes this server claims
+                    local ok_ft = false
+                    for _, f in ipairs(config.filetypes or {}) do
+                        if f == ft then ok_ft = true break end
+                    end
+                    if not ok_ft then return end
+
+                    local fname = vim.api.nvim_buf_get_name(bufnr)
+                    if fname == "" then return end
 
                     local root
                     if config.root_dir then
-                        root = config.root_dir(fname, ev.buf)
+                        root = config.root_dir(fname, bufnr)
+                        if not root then
+                            return -- IMPORTANT: don't start without a real project root
+                        end
+                    else
+                        root = vim.fs.dirname(fname)
+                        if not root then return end
                     end
-                    root = root or vim.fs.dirname(fname)
 
-                    -- Start the LSP client with the FULL config
+                    -- Start or attach (Neovim reuses an existing client for same name/root)
                     vim.lsp.start(vim.tbl_extend("force", config, {
                         name = name,
                         root_dir = root,
@@ -123,6 +132,7 @@ return {
                 end,
             })
         end
+
 
         -------------------------------------------------
         -- Servers
@@ -219,32 +229,6 @@ return {
             vim.notify("Mason Apex jar not found at: " .. mason_apex_jar, vim.log.levels.WARN)
         end
 
-        -------------------------------------------------
-        -- Completion Setup
-        -------------------------------------------------
-        local cmp = require("cmp")
-        local luasnip = require("luasnip")
-
-        cmp.setup({
-            snippet = {
-                expand = function(args)
-                    luasnip.lsp_expand(args.body)
-                end,
-            },
-            mapping = cmp.mapping.preset.insert({
-                ["<C-p>"] = cmp.mapping.select_prev_item(),
-                ["<C-n>"] = cmp.mapping.select_next_item(),
-                ["<C-y>"] = cmp.mapping.confirm({ select = true }),
-                ["<C-Space>"] = cmp.mapping.complete(),
-            }),
-            sources = cmp.config.sources({
-                { name = "nvim_lsp" },
-                { name = "luasnip" },
-            }, {
-                    { name = "buffer" },
-                    { name = "path" },
-                }),
-        })
     end,
 }
 
