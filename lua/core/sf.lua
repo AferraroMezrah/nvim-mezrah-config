@@ -28,18 +28,28 @@ local function get_project_root_or_err()
     return vim.fs.dirname(sfdx_cfg)
 end
 
-local function sh_escape(arg) return vim.fn.shellescape(arg) end
-
 local function run_from_root(cmd)
     local root = get_project_root_or_err()
     if not root then return end
-    -- TODO use write if modified
-    -- Use :terminal for better UX (doesn't block redraw/history)
-    vim.cmd('write')
-    vim.cmd('terminal cd ' .. sh_escape(root) .. ' && ' .. cmd)
-    local buf = vim.api.nvim_get_current_buf()
-    vim.keymap.set('n', 'q', '<cmd>bd!<CR>', { buffer = buf, silent = true })
+
+    if vim.bo.modified then vim.cmd("write") end
+
+    -- stock: split + terminal
+    vim.cmd("botright 15split")
+    vim.cmd("terminal")
+
+    -- cd + run the command in the shell
+    local chan = vim.b.terminal_job_id
+    vim.fn.chansend(chan, "cd " .. vim.fn.shellescape(root) .. "\n")
+    vim.fn.chansend(chan, cmd .. "\n")
+
+    -- go into terminal insert mode like normal
+    vim.cmd("startinsert")
 end
+
+
+
+
 
 local function ensure_dir_exists(root, rel)
     local path = root .. "/" .. rel
@@ -78,16 +88,16 @@ end
 
 -- === Deploy ==================================================================
 local function deploy_current_file()
-    local root = get_project_root_or_err()
-    if not root then return end
-    local file = vim.fn.expand('%:p')
-    local cmd = table.concat({
-        "sf project deploy start",
-        "--source-dir " .. sh_escape(file),
-        "--target-org " .. sh_escape(TARGET_ORG),
-    }, " ")
-    run_from_root(cmd)
+  local file = vim.fn.expand("%:p")
+  local cmd = table.concat({
+    "sf project deploy start",
+    "--source-dir " .. vim.fn.shellescape(file),
+    "--target-org " .. vim.fn.shellescape(TARGET_ORG),
+  }, " ")
+  run_from_root(cmd)
 end
+
+
 
 -- === Apex / SOQL runners =====================================================
 local function sf_bin(opts)
@@ -95,55 +105,100 @@ local function sf_bin(opts)
 end
 
 local function run_apex_file(opts)
-    opts = opts or {}
-    local root = get_project_root_or_err()
-    if not root then return end
+  opts = opts or {}
+  local file = vim.fn.expand("%:p")
+  if not file:match("%.apex$") then
+    vim.notify("Current file is not a .apex script", vim.log.levels.ERROR)
+    return
+  end
 
-    local file = vim.fn.expand('%:p')
-    if not file:match('%.apex$') then
-        vim.notify('Current file is not a .apex script', vim.log.levels.ERROR)
-        return
-    end
-
-    local cmd_parts = {
-        sf_bin(opts),
-        "apex run",
-        "--file " .. sh_escape(file),
-    }
-
-    if not opts.prod then
-        table.insert(cmd_parts, "--target-org " .. sh_escape(TARGET_ORG))
-    end
-
-    run_from_root(table.concat(cmd_parts, " "))
+  local cmd = "sf apex run --file " .. vim.fn.shellescape(file)
+  if not opts.prod then
+    cmd = cmd .. " --target-org " .. vim.fn.shellescape(TARGET_ORG)
+  end
+  run_from_root(cmd)
 end
+
+
 
 local function run_soql_file(opts)
     opts = opts or {}
-    local root = get_project_root_or_err()
-    if not root then return end
-
-    local file = vim.fn.expand('%:p')
-    if not file:match('%.soql$') then
-        vim.notify('Current file is not a .soql query', vim.log.levels.ERROR)
+    local file = vim.fn.expand("%:p")
+    if not file:match("%.soql$") then
+        vim.notify("Current file is not a .soql query", vim.log.levels.ERROR)
         return
     end
 
     local result_format = opts.result_format or "human"
 
-    local cmd_parts = {
-        sf_bin(opts),
-        "data query",
-        "--file " .. sh_escape(file),
-        "--result-format " .. sh_escape(result_format),
-    }
-
+    local args = { sf_bin(opts), "data", "query", "--file", file, "--result-format", result_format }
     if not opts.prod then
-        table.insert(cmd_parts, "--target-org " .. sh_escape(TARGET_ORG))
+        table.insert(args, "--target-org")
+        table.insert(args, TARGET_ORG)
     end
 
-    run_from_root(table.concat(cmd_parts, " "))
+    run_from_root(args)
 end
+
+
+-- === SfOut: export singleton output payload to a real file ====================
+
+local function join_path(a, b)
+    return (a:gsub("/$", "")) .. "/" .. (b:gsub("^/", ""))
+end
+
+local function project_file_or_err(root, relpath)
+    local p = join_path(root, relpath)
+    if vim.fn.filereadable(p) ~= 1 then
+        vim.notify("Missing project file: " .. relpath, vim.log.levels.ERROR)
+        return nil
+    end
+    return p
+end
+
+local function local_out_dir(root)
+    local rel = ".local/sf"
+    ensure_dir_exists(root, rel)
+    return join_path(root, rel)
+end
+
+local function sf_out(opts)
+    opts = opts or {}
+    local root = get_project_root_or_err()
+    if not root then return end
+
+    local soql_file = project_file_or_err(root, "scripts/soql/out.soql")
+    if not soql_file then return end
+
+    local outdir  = local_out_dir(root)
+    local wrapper = join_path(outdir, "out-wrapper.json")
+
+    local args = {
+        sf_bin(opts), "data", "query",
+        "--file", soql_file,
+        "--result-format", "json",
+        "--output-file", wrapper,
+    }
+    if not opts.prod then
+        table.insert(args, "--target-org")
+        table.insert(args, TARGET_ORG)
+    end
+
+    run_from_root(args, {
+        on_exit = function(res)
+            -- res is the full vim.system result, not just exit code
+            if res.code == 0 and vim.fn.getfsize(wrapper) > 0 then
+                vim.cmd("edit " .. vim.fn.fnameescape(wrapper))
+            else
+                vim.notify("SfOut failed (exit " .. tostring(res.code) .. ")", vim.log.levels.ERROR)
+            end
+        end,
+    })
+end
+
+
+
+
 
 
 -- === Generators ==============================================================
@@ -155,12 +210,11 @@ local function gen_apex_class()
     vim.ui.input({ prompt = "Apex Class Name: " }, function(name)
         if not name or name == "" then return end
         ensure_dir_exists(root, DX_DIRS.classes)
-        local cmd = table.concat({
-            "sf apex generate class",
-            "--name " .. sh_escape(name),
-            "--output-dir " .. sh_escape(DX_DIRS.classes),
-        }, " ")
-        run_from_root(cmd)
+        run_from_root({
+            "sf", "apex", "generate", "class",
+            "--name", name,
+            "--output-dir", DX_DIRS.classes,
+        })
     end)
 end
 
@@ -170,20 +224,25 @@ local function gen_vf_page()
 
     vim.ui.input({ prompt = "VF Page Name: " }, function(name)
         if not name or name == "" then return end
+
         vim.ui.input({ prompt = "Label (optional): " }, function(label)
             ensure_dir_exists(root, DX_DIRS.pages)
-            local parts = {
-                "sf visualforce generate page",
-                "--name " .. sh_escape(name),
-                "--output-dir " .. sh_escape(DX_DIRS.pages),
+
+            local args = {
+                "sf", "visualforce", "generate", "page",
+                "--name", name,
+                "--output-dir", DX_DIRS.pages,
             }
             if label and #label > 0 then
-                table.insert(parts, "--label " .. sh_escape(label))
+                table.insert(args, "--label")
+                table.insert(args, label)
             end
-            run_from_root(table.concat(parts, " "))
+
+            run_from_root(args)
         end)
     end)
 end
+
 
 local function gen_vf_component()
     local root = get_project_root_or_err()
@@ -191,20 +250,25 @@ local function gen_vf_component()
 
     vim.ui.input({ prompt = "VF Component Name: " }, function(name)
         if not name or name == "" then return end
+
         vim.ui.input({ prompt = "Label (optional): " }, function(label)
             ensure_dir_exists(root, DX_DIRS.components)
-            local parts = {
-                "sf visualforce generate component",
-                "--name " .. sh_escape(name),
-                "--output-dir " .. sh_escape(DX_DIRS.components),
+
+            local args = {
+                "sf", "visualforce", "generate", "component",
+                "--name", name,
+                "--output-dir", DX_DIRS.components,
             }
             if label and #label > 0 then
-                table.insert(parts, "--label " .. sh_escape(label))
+                table.insert(args, "--label")
+                table.insert(args, label)
             end
-            run_from_root(table.concat(parts, " "))
+
+            run_from_root(args)
         end)
     end)
 end
+
 
 -- === Tests ===================================================================
 
@@ -214,27 +278,31 @@ end
 -- Uses human output with detailed coverage for quick readability.
 local function run_tests(opts)
     opts = opts or {}
-    local base = {
-        "sf apex test run",
-        "--target-org " .. sh_escape(TARGET_ORG),
+    local args = {
+        "sf", "apex", "test", "run",
+        "--target-org", TARGET_ORG,
         "--code-coverage",
-        "--result-format human",
+        "--result-format", "human",
         "--detailed-coverage",
-        "--wait 10",
+        "--wait", "10",
     }
+
     if opts.tests then
-        table.insert(base, "--test-names " .. sh_escape(opts.tests))
-        -- synchronous allowed when single class; CLI decides, harmless if multiple
-        table.insert(base, "--synchronous")
+        table.insert(args, "--test-names")
+        table.insert(args, opts.tests)
+        table.insert(args, "--synchronous")
     elseif opts.classnames then
-        table.insert(base, "--class-names " .. sh_escape(opts.classnames))
-        table.insert(base, "--synchronous")
+        table.insert(args, "--class-names")
+        table.insert(args, opts.classnames)
+        table.insert(args, "--synchronous")
     else
-        -- Fallback: run local tests (rarely used interactively)
-        table.insert(base, "--test-level RunLocalTests")
+        table.insert(args, "--test-level")
+        table.insert(args, "RunLocalTests")
     end
-    run_from_root(table.concat(base, " "))
+
+    run_from_root(args)
 end
+
 
 local function test_current_class()
     local class = infer_class_from_file()
@@ -335,6 +403,23 @@ end, { desc = 'SF: Run current .soql in sandbox' })
 vim.keymap.set('n', '<leader>sQ', function()
     run_soql_file({ prod = true })
 end, { desc = 'SF: Run current .soql in PROD' })
+
+-- SfOut (singleton payload export)
+vim.api.nvim_create_user_command('SfOut', function()
+    sf_out({ prod = false })
+end, {})
+
+vim.keymap.set('n', '<leader>so', function()
+    sf_out({ prod = false })
+end, { desc = 'SF: Write out-wrapper.json and open' })
+
+vim.api.nvim_create_user_command('SfOutProd', function()
+    sf_out({ prod = true })
+end, {})
+
+vim.keymap.set('n', '<leader>sO', function()
+    sf_out({ prod = true })
+end, { desc = 'SF: Write out-wrapper.json from PROD and open' })
 
 return M
 
