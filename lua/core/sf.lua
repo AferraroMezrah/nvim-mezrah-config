@@ -15,8 +15,20 @@ local DX_DIRS = {
 }
 
 -- === Utilities ===============================================================
+local function is_sfdx_root(dir)
+  return vim.fn.filereadable(dir .. "/sfdx-project.json") == 1
+end
+
 local function find_sfdx_root()
-    return vim.fs.find('sfdx-project.json', { upward = true, path = vim.fn.expand('%:p:h') })[1]
+    local cwd = vim.fn.getcwd()
+    if is_sfdx_root(cwd) then
+        return cwd .. "/sfdx-project.json"
+    end
+
+    return vim.fs.find('sfdx-project.json', {
+        upward = true,
+        path = vim.fn.expand('%:p:h'),
+    })[1]
 end
 
 local function get_project_root_or_err()
@@ -28,24 +40,60 @@ local function get_project_root_or_err()
     return vim.fs.dirname(sfdx_cfg)
 end
 
-local function run_from_root(cmd)
+local function run_from_root(cmd, opts)
+    opts = opts or {}
     local root = get_project_root_or_err()
     if not root then return end
 
-    if vim.bo.modified then vim.cmd("write") end
+    if opts.write ~= false and vim.bo.modified then
+        vim.cmd("write")
+    end
 
-    -- stock: split + terminal
+    -- remember where we were so we can come back if desired
+    local prev_win = vim.api.nvim_get_current_win()
+
+    -- open a dedicated terminal window + buffer
     vim.cmd("botright 15split")
-    vim.cmd("terminal")
+    vim.cmd("enew") -- <- CRITICAL: terminal must not reuse your file buffer
+    local term_buf = vim.api.nvim_get_current_buf()
 
-    -- cd + run the command in the shell
-    local chan = vim.b.terminal_job_id
-    vim.fn.chansend(chan, "cd " .. vim.fn.shellescape(root) .. "\n")
-    vim.fn.chansend(chan, cmd .. "\n")
+    -- terminal buffers should not have line numbers
+    vim.opt_local.number = false
+    vim.opt_local.relativenumber = false
 
-    -- go into terminal insert mode like normal
+    -- run command with cwd set to the sfdx root
+    local job_id = vim.fn.termopen(cmd, {
+        cwd = root,
+        on_exit = function(_, code, _)
+            if opts.on_exit then
+                -- schedule because callbacks can fire in awkward contexts
+                vim.schedule(function()
+                    opts.on_exit({ code = code, root = root })
+                end)
+            end
+        end,
+    })
+
+    if job_id <= 0 then
+        vim.notify("Failed to start SF terminal job.", vim.log.levels.ERROR)
+        return
+    end
+
+    -- name the *terminal buffer*, not the file buffer
+    pcall(vim.api.nvim_buf_set_name, term_buf, "sf://term")
+
     vim.cmd("startinsert")
+
+    -- optional: if you want to jump back to your file immediately while it runs:
+    if opts.return_to_prev then
+        vim.schedule(function()
+            if vim.api.nvim_win_is_valid(prev_win) then
+                vim.api.nvim_set_current_win(prev_win)
+            end
+        end)
+    end
 end
+
 
 
 
@@ -88,14 +136,14 @@ end
 
 -- === Deploy ==================================================================
 local function deploy_current_file()
-  local file = vim.fn.expand("%:p")
-  local cmd = table.concat({
-    "sf project deploy start",
-    "--source-dir " .. vim.fn.shellescape(file),
-    "--target-org " .. vim.fn.shellescape(TARGET_ORG),
-  }, " ")
-  run_from_root(cmd)
+    local file = vim.fn.expand("%:p")
+    run_from_root({
+        "sf", "project", "deploy", "start",
+        "--source-dir", file,
+        "--target-org", TARGET_ORG,
+    })
 end
+
 
 
 
@@ -186,8 +234,7 @@ local function sf_out(opts)
 
     run_from_root(args, {
         on_exit = function(res)
-            -- res is the full vim.system result, not just exit code
-            if res.code == 0 and vim.fn.getfsize(wrapper) > 0 then
+            if res.code == 0 and vim.fn.filereadable(wrapper) == 1 and vim.fn.getfsize(wrapper) > 0 then
                 vim.cmd("edit " .. vim.fn.fnameescape(wrapper))
             else
                 vim.notify("SfOut failed (exit " .. tostring(res.code) .. ")", vim.log.levels.ERROR)
