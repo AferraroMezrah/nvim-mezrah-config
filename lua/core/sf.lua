@@ -243,6 +243,109 @@ local function sf_out(opts)
     })
 end
 
+-- === SfOutPretty: open Payload__c as real pretty JSON ========================
+
+local function read_file(path)
+    local lines = vim.fn.readfile(path)
+    return table.concat(lines, "\n")
+end
+
+local function write_file(path, text)
+    -- writefile wants a list of lines
+    vim.fn.writefile(vim.split(text, "\n", { plain = true }), path)
+end
+
+local function shell_cmd_exists(cmd)
+    return vim.fn.executable(cmd) == 1
+end
+
+local function system_text(cmd, input)
+    -- cmd can be list or string; input is string
+    local out = vim.fn.system(cmd, input)
+    local code = vim.v.shell_error
+    return code, out
+end
+
+local function sf_out_open_payload()
+    local root = get_project_root_or_err()
+    if not root then return end
+
+    local outdir = local_out_dir(root)
+    local wrapper = join_path(outdir, "out-wrapper.json")
+    if vim.fn.filereadable(wrapper) ~= 1 then
+        vim.notify("Missing wrapper file: " .. wrapper .. " (run :SfOut first)", vim.log.levels.ERROR)
+        return
+    end
+
+    local ok, wrapper_obj = pcall(vim.json.decode, read_file(wrapper))
+    if not ok or not wrapper_obj or not wrapper_obj.records or not wrapper_obj.records[1] then
+        vim.notify("Failed to parse wrapper or missing records[1]", vim.log.levels.ERROR)
+        return
+    end
+
+    local rec = wrapper_obj.records[1]
+    local payload = rec.Payload__c
+    local format = (rec.Format__c or "JSON"):upper()
+
+    if type(payload) ~= "string" then
+        vim.notify("records[1].Payload__c is not a string", vim.log.levels.ERROR)
+        return
+    end
+
+    -- Normalize newlines for CSV on Windows-ish workflows (optional but nice)
+    -- Only do this for CSV; JSON should remain unchanged.
+    if format == "CSV" then
+        payload = payload:gsub("\r\n", "\n"):gsub("\r", "\n")
+    end
+
+    if format == "JSON" then
+        -- validate JSON text first
+        local ok2 = pcall(vim.json.decode, payload)
+        if not ok2 then
+            vim.notify("Format__c says JSON but payload is not valid JSON text", vim.log.levels.ERROR)
+            return
+        end
+
+        local pretty = nil
+
+        if shell_cmd_exists("python") then
+            local code, out = system_text({ "python", "-m", "json.tool" }, payload)
+            if code == 0 and out and #out > 0 then pretty = out end
+        end
+
+        if not pretty and shell_cmd_exists("jq") then
+            local code, out = system_text({ "jq", "." }, payload)
+            if code == 0 and out and #out > 0 then pretty = out end
+        end
+
+        if not pretty then
+            pretty = payload .. "\n"
+            vim.notify("Could not find python or jq; wrote raw JSON (valid but not pretty).", vim.log.levels.WARN)
+        end
+
+        local out_payload = join_path(outdir, "out-payload.pretty.json")
+        write_file(out_payload, pretty)
+        vim.cmd("edit " .. vim.fn.fnameescape(out_payload))
+        vim.bo.filetype = "json"
+        return
+    end
+
+    if format == "CSV" then
+        local out_payload = join_path(outdir, "out-payload.csv")
+        write_file(out_payload, payload)
+        vim.cmd("edit " .. vim.fn.fnameescape(out_payload))
+        vim.bo.filetype = "csv"
+        vim.bo.fileformat = "unix"
+        return
+    end
+
+    -- default: plain text
+    local out_payload = join_path(outdir, "out-payload.txt")
+    write_file(out_payload, payload .. "\n")
+    vim.cmd("edit " .. vim.fn.fnameescape(out_payload))
+    vim.bo.filetype = "text"
+end
+
 -- === Generators ==============================================================
 
 local function gen_apex_class()
@@ -459,6 +562,9 @@ end, {})
 vim.keymap.set('n', '<leader>sO', function()
     sf_out({ prod = true })
 end, { desc = 'SF: Write out-wrapper.json from PROD and open' })
+
+vim.api.nvim_create_user_command("SfOutPretty", sf_out_open_payload, {})
+vim.keymap.set("n", "<leader>sop", sf_out_open_payload, { desc = "SF: Open Payload__c" })
 
 return M
 
