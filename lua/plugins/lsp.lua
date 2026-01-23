@@ -18,8 +18,18 @@ function M.base_on_attach(client, bufnr)
 
     -- Diagnostics
     keymap("n", "<leader>e", vim.diagnostic.open_float, opts)
-    keymap("n", "[d",        vim.diagnostic.goto_prev,  opts)
-    keymap("n", "]d",        vim.diagnostic.goto_next,  opts)
+    keymap("n", "[d", function()
+        vim.diagnostic.jump({
+            count = -vim.v.count1,
+            float=true,
+        })
+    end, opts)
+    keymap("n", "]d", function()
+        vim.diagnostic.jump({
+            count = vim.v.count1,
+            float=true,
+        })
+    end, opts)
     keymap("n", "<leader>q", vim.diagnostic.setqflist, opts)
 
     -- Actions
