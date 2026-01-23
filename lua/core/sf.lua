@@ -16,7 +16,7 @@ local DX_DIRS = {
 
 -- === Utilities ===============================================================
 local function is_sfdx_root(dir)
-  return vim.fn.filereadable(dir .. "/sfdx-project.json") == 1
+    return vim.fn.filereadable(dir .. "/sfdx-project.json") == 1
 end
 
 local function find_sfdx_root()
@@ -49,28 +49,39 @@ local function run_from_root(cmd, opts)
         vim.cmd("write")
     end
 
-    -- remember where we were so we can come back if desired
-    local prev_win = vim.api.nvim_get_current_win()
-
-    -- open a dedicated terminal window + buffer
     vim.cmd("botright 15split")
-    vim.cmd("enew") -- <- CRITICAL: terminal must not reuse your file buffer
+    vim.cmd("enew")
     local term_buf = vim.api.nvim_get_current_buf()
+    local term_win = vim.api.nvim_get_current_win()
 
-    -- terminal buffers should not have line numbers
     vim.opt_local.number = false
     vim.opt_local.relativenumber = false
 
-    -- run command with cwd set to the sfdx root
+    -- predictable close
+    vim.keymap.set("n", "q", function()
+        if vim.api.nvim_win_is_valid(term_win) then
+            vim.api.nvim_win_close(term_win, true)
+        end
+    end, { buffer = term_buf, silent = true })
+
+    -- run
     local job_id = vim.fn.termopen(cmd, {
         cwd = root,
         on_exit = function(_, code, _)
-            if opts.on_exit then
-                -- schedule because callbacks can fire in awkward contexts
-                vim.schedule(function()
+            vim.schedule(function()
+                -- CRITICAL: leave terminal-mode so k/j work and don't trigger terminal maps
+                pcall(vim.cmd, "stopinsert")
+
+                if opts.on_exit then
                     opts.on_exit({ code = code, root = root })
-                end)
-            end
+                end
+
+                if opts.close_on_exit then
+                    if vim.api.nvim_win_is_valid(term_win) then
+                        vim.api.nvim_win_close(term_win, true)
+                    end
+                end
+            end)
         end,
     })
 
@@ -79,20 +90,10 @@ local function run_from_root(cmd, opts)
         return
     end
 
-    -- name the *terminal buffer*, not the file buffer
     pcall(vim.api.nvim_buf_set_name, term_buf, "sf://term")
-
     vim.cmd("startinsert")
-
-    -- optional: if you want to jump back to your file immediately while it runs:
-    if opts.return_to_prev then
-        vim.schedule(function()
-            if vim.api.nvim_win_is_valid(prev_win) then
-                vim.api.nvim_set_current_win(prev_win)
-            end
-        end)
-    end
 end
+
 
 
 
@@ -153,21 +154,21 @@ local function sf_bin(opts)
 end
 
 local function run_apex_file(opts)
-  opts = opts or {}
-  local file = vim.fn.expand("%:p")
-  if not file:match("%.apex$") then
-    vim.notify("Current file is not a .apex script", vim.log.levels.ERROR)
-    return
-  end
+    opts = opts or {}
+    local file = vim.fn.expand("%:p")
+    if not file:match("%.apex$") then
+        vim.notify("Current file is not a .apex script", vim.log.levels.ERROR)
+        return
+    end
 
-  local cmd = "sf apex run --file " .. vim.fn.shellescape(file)
-  if not opts.prod then
-    cmd = cmd .. " --target-org " .. vim.fn.shellescape(TARGET_ORG)
-  end
-  run_from_root(cmd)
+    local args = { sf_bin(opts), "apex", "run", "--file", file }
+    if not opts.prod then
+        table.insert(args, "--target-org")
+        table.insert(args, TARGET_ORG)
+    end
+
+    run_from_root(args, opts)
 end
-
-
 
 local function run_soql_file(opts)
     opts = opts or {}
@@ -187,7 +188,6 @@ local function run_soql_file(opts)
 
     run_from_root(args)
 end
-
 
 -- === SfOut: export singleton output payload to a real file ====================
 
@@ -243,11 +243,6 @@ local function sf_out(opts)
     })
 end
 
-
-
-
-
-
 -- === Generators ==============================================================
 
 local function gen_apex_class()
@@ -290,7 +285,6 @@ local function gen_vf_page()
     end)
 end
 
-
 local function gen_vf_component()
     local root = get_project_root_or_err()
     if not root then return end
@@ -315,7 +309,6 @@ local function gen_vf_component()
         end)
     end)
 end
-
 
 -- === Tests ===================================================================
 
@@ -349,7 +342,6 @@ local function run_tests(opts)
 
     run_from_root(args)
 end
-
 
 local function test_current_class()
     local class = infer_class_from_file()
