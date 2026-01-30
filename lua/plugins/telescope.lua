@@ -73,6 +73,64 @@ return {
         end, { desc = '[F]ind [N]eovim config files' })
         vim.keymap.set('n', '<leader>gb', builtin.git_branches, { desc = '[G]it [B]ranches' })
 
+        -- Diff vs default branch (PR-style): show changed files in a Telescope picker
+        local function pick_diff_files()
+            -- Ensure we're in a git repo
+            if not vim.fn.system('git rev-parse --is-inside-work-tree 2>/dev/null'):match('true') then
+                vim.notify('Not inside a git repository', vim.log.levels.WARN)
+                return
+            end
+
+            -- Resolve default branch via origin/HEAD
+            local base = vim.fn.system('git symbolic-ref --quiet refs/remotes/origin/HEAD')
+                :gsub('%s+', '')
+                :gsub('^refs/remotes/', '')
+
+            if base == '' then
+                vim.notify('Could not determine default branch (origin/HEAD)', vim.log.levels.ERROR)
+                return
+            end
+
+            local files = vim.fn.systemlist(string.format('git diff --name-only %s...HEAD', base))
+            if vim.v.shell_error ~= 0 then
+                vim.notify('git diff failed', vim.log.levels.ERROR)
+                return
+            end
+
+            -- Filter empties
+            local results = {}
+            for _, f in ipairs(files) do
+                if f and f ~= '' then table.insert(results, f) end
+            end
+
+            if #results == 0 then
+                vim.notify('No changes vs ' .. base, vim.log.levels.INFO)
+                return
+            end
+
+            local pickers = require('telescope.pickers')
+            local finders = require('telescope.finders')
+            local conf = require('telescope.config').values
+            local make_entry = require('telescope.make_entry')
+
+            pickers.new({}, {
+                prompt_title = 'Diff files vs ' .. base,
+
+                -- THIS is the key: make_entry.gen_from_file gives icons + nicer display
+                finder = finders.new_table({
+                    results = results,
+                    entry_maker = make_entry.gen_from_file({}),
+                }),
+
+                -- Use the standard file previewer
+                previewer = conf.file_previewer({}),
+                sorter = conf.file_sorter({}),
+            }):find()
+        end
+
+
+        vim.keymap.set('n', '<leader>gF', pick_diff_files, { desc = '[G]it diff [F]iles vs master (PR)' })
+
     end,
 }
 

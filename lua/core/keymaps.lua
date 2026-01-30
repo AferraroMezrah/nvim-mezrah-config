@@ -51,6 +51,8 @@ vim.keymap.set("n", "<leader>qq", "<cmd>cclose<cr>", { desc = "Quickfix close" }
 
 vim.keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]])
 
+vim.keymap.set("n", "<leader>=", "`[v`]=", { desc = "Reindent last change" })
+
 
 local function qf_info()
   return vim.fn.getqflist({ size = 0, idx = 0 })
