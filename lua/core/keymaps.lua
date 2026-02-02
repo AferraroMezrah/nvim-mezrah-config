@@ -53,6 +53,60 @@ vim.keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><
 
 vim.keymap.set("n", "<leader>=", "`[v`]=", { desc = "Reindent last change" })
 
+vim.keymap.set("i", "<C-d>", function()
+    local date = vim.fn.strftime("%Y-%m-%d")
+    vim.api.nvim_put({ date }, "c", true, true)
+end, { desc = "Insert date YYYY-MM-DD" })
+
+vim.keymap.set("i", "<C-g>", function()
+    local line = "## " .. vim.fn.strftime("%Y-%m-%d")
+    vim.api.nvim_put({ line }, "l", true, true)
+end, { desc = "Insert heading with date" })
+
+local function notes_root()
+    if vim.env.NOTES_DIR and vim.env.NOTES_DIR ~= "" then
+        return vim.env.NOTES_DIR
+    end
+
+    -- fallback: if current working dir *is* notes repo
+    local cwd = vim.fn.getcwd()
+    if cwd:match("[/\\]notes$") then
+        return cwd
+    end
+
+    return nil
+end
+
+vim.keymap.set("n", "<leader>ni", function()
+    local root = vim.env.NOTES_DIR
+    if not root or root == "" then
+        vim.notify("NOTES_DIR is not set", vim.log.levels.ERROR)
+        return
+    end
+
+    root = root:gsub("\\", "/")
+    local date = vim.fn.strftime("%Y-%m-%d")
+    local path = root .. "/inbox/" .. date .. ".md"
+
+    vim.cmd("edit " .. vim.fn.fnameescape(path))
+    vim.cmd("normal! G")
+end, { desc = "Notes: open today's inbox" })
+
+vim.keymap.set("n", "<leader>nf", function()
+    local root = vim.env.NOTES_DIR
+    if not root or root == "" then
+        vim.notify("NOTES_DIR is not set", vim.log.levels.ERROR)
+        return
+    end
+
+    root = root:gsub("\\", "/")
+    require("telescope.builtin").find_files({
+        cwd = root,
+        prompt_title = "Notes",
+    })
+end, { desc = "Notes: find file" })
+
+
 
 local function qf_info()
   return vim.fn.getqflist({ size = 0, idx = 0 })
