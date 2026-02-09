@@ -213,7 +213,7 @@ return {
             setup_lsp("apex_ls", {
                 cmd = { "java", "-jar", mason_apex_jar },
                 filetypes = { "apex" },
-                root_dir = util.root_pattern("sfdx-project.json", "project-scratch-def.json", ".git"),
+                root_dir = util.root_pattern("sfdx-project.json", "project-scratch-def.json"),
             })
         else
             vim.notify("Mason Apex jar not found at: " .. mason_apex_jar, vim.log.levels.WARN)
