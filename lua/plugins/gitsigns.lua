@@ -5,6 +5,9 @@ return {
     event = { "BufReadPre", "BufNewFile" },
     config = function()
         require("gitsigns").setup({
+            current_line_blame_opts = {
+                ignore_whitespace = true,
+            },
             on_attach = function(bufnr)
                 local gs = require("gitsigns")
                 local map = function(mode, lhs, rhs, desc)
