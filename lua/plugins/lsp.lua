@@ -76,8 +76,6 @@ return {
                 "cssls",
                 "jsonls",
                 "clangd",
-                "gopls",
-                "rust_analyzer",
                 "visualforce_ls",
             },
             automatic_enable = false,
@@ -195,18 +193,6 @@ return {
             cmd = { "clangd" },
             filetypes = { "c", "cpp", "objc", "objcpp", "cuda", "proto" },
             root_dir = util.root_pattern("compile_commands.json", "compile_flags.txt", ".git"),
-        })
-
-        setup_lsp("gopls", {
-            cmd = { "gopls" },
-            filetypes = { "go", "gomod", "gowork", "gotmpl" },
-            root_dir = util.root_pattern("go.work", "go.mod", ".git"),
-        })
-
-        setup_lsp("rust_analyzer", {
-            cmd = { "rust-analyzer" },
-            filetypes = { "rust" },
-            root_dir = util.root_pattern("Cargo.toml", "rust-project.json", ".git"),
         })
 
         setup_lsp("visualforce_ls", {
