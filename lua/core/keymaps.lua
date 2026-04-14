@@ -13,6 +13,25 @@ vim.keymap.set("n", "<leader>fp", function()
     require("core.colorscheme_picker").pick()
 end, { desc = "Pick colorscheme with preview" })
 
+
+vim.keymap.set("n", "<leader>ts", function()
+    vim.cmd("botright 15split | terminal")
+    vim.cmd("startinsert")
+end, { desc = "[T]erminal: horizontal [S]plit" })
+
+vim.keymap.set("n", "<leader>tv", function()
+    vim.cmd("rightbelow vsplit | terminal")
+    vim.cmd("startinsert")
+end, { desc = "[T]erminal: [V]ertical split" })
+
+vim.keymap.set("n", "<leader>tt", function()
+    vim.cmd("terminal")
+    vim.cmd("startinsert")
+end,  { desc = "[T]erminal: here" })
+
+vim.keymap.set("t", "<C-\\><C-\\>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+vim.keymap.set("t", "<C-^>", "<C-\\><C-n><C-^>", { desc = "Return to previous buffer from terminal mode" })
+
 -- Primeagen inspired
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")

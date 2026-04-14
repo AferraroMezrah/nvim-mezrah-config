@@ -12,6 +12,7 @@ require("core.keymaps")
 require("core.filetypes")
 require("core.autocmds.node")
 require("core.autocmds.custom")
+require("core.autocmds.terminal")
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
