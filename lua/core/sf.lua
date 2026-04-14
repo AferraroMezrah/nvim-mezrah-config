@@ -15,6 +15,10 @@ local DX_DIRS = {
 }
 
 -- === Utilities ===============================================================
+local function join_path(a, b)
+    return (a:gsub("/$", "")) .. "/" .. (b:gsub("^/", ""))
+end
+
 local function is_sfdx_root(dir)
     return vim.fn.filereadable(dir .. "/sfdx-project.json") == 1
 end
@@ -135,6 +139,207 @@ local function infer_test_method_on_line()
     return nil
 end
 
+local function find_files_by_name(root, rel_dir, filename)
+    local dir = join_path(root, rel_dir)
+    if vim.fn.isdirectory(dir) ~= 1 then
+        return {}
+    end
+
+    local matches = vim.fs.find(filename, {
+        path = dir,
+        type = "file",
+        limit = math.huge,
+    })
+
+    return matches or {}
+end
+
+local function find_class_paths(root, class_name)
+    local filename = class_name .. ".cls"
+    local preferred_path = join_path(join_path(root, DX_DIRS.classes), filename)
+
+    if vim.fn.filereadable(preferred_path) == 1 then
+        return { preferred_path }
+    end
+
+    return find_files_by_name(root, DX_DIRS.classes, filename)
+end
+
+local function open_file_like_picker(paths)
+    if not paths or #paths == 0 then
+        vim.notify("No matching file found.", vim.log.levels.WARN)
+        return
+    end
+
+    if #paths == 1 then
+        vim.cmd("edit " .. vim.fn.fnameescape(paths[1]))
+        return
+    end
+
+    vim.ui.select(paths, {
+        prompt = "Select file:",
+        format_item = function(item)
+            return vim.fn.fnamemodify(item, ":.")
+        end,
+    }, function(choice)
+        if choice then
+            vim.cmd("edit " .. vim.fn.fnameescape(choice))
+        end
+    end)
+end
+
+local function ts_node_text(node, bufnr)
+    return vim.treesitter.get_node_text(node, bufnr)
+end
+
+local function find_apex_root_start_tag(node, bufnr)
+    local valid_tags = {
+        ["apex:page"] = true,
+        ["apex:component"] = true,
+    }
+
+    if node:type() == "start_tag" then
+        for child in node:iter_children() do
+            if child:type() == "tag_name" then
+                local name = ts_node_text(child, bufnr)
+                if valid_tags[name] then
+                    return node, name
+                end
+            end
+        end
+    end
+
+    for child in node:iter_children() do
+        local found, tag_name = find_apex_root_start_tag(child, bufnr)
+        if found then
+            return found, tag_name
+        end
+    end
+
+    return nil, nil
+end
+
+local function get_start_tag_attribute(start_tag, target_name, bufnr)
+    for child in start_tag:iter_children() do
+        if child:type() == "attribute" then
+            local attr_name = nil
+            local attr_value = nil
+
+            for attr_child in child:iter_children() do
+                if attr_child:type() == "attribute_name" then
+                    attr_name = ts_node_text(attr_child, bufnr)
+                elseif attr_child:type() == "quoted_attribute_value" then
+                    for value_child in attr_child:iter_children() do
+                        if value_child:type() == "attribute_value" then
+                            attr_value = ts_node_text(value_child, bufnr)
+                        end
+                    end
+                end
+            end
+
+            if attr_name == target_name then
+                return attr_value
+            end
+        end
+    end
+
+    return nil
+end
+
+local function get_vf_targets()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
+    if not ok or not parser then
+        vim.notify("No Tree-sitter parser available for this buffer.", vim.log.levels.ERROR)
+        return nil
+    end
+
+    local tree = parser:parse()[1]
+    if not tree then
+        vim.notify("Could not parse current buffer.", vim.log.levels.ERROR)
+        return nil
+    end
+
+    local root = tree:root()
+    local start_tag, tag_name = find_apex_root_start_tag(root, bufnr)
+    if not start_tag then
+        vim.notify("No <apex:page> or <apex:component> start tag found.", vim.log.levels.WARN)
+        return nil
+    end
+
+    local controller = get_start_tag_attribute(start_tag, "controller", bufnr)
+    local extension = get_start_tag_attribute(start_tag, "extensions", bufnr)
+
+    local targets = {}
+
+    if controller and controller ~= "" then
+        table.insert(targets, {
+            kind = "controller",
+            name = controller,
+            tag_name = tag_name,
+        })
+    end
+
+    if extension and extension ~= "" then
+        table.insert(targets, {
+            kind = "extension",
+            name = extension,
+            tag_name = tag_name,
+        })
+    end
+
+    if #targets == 0 then
+        vim.notify("No controller or extensions attribute found on <" .. tag_name .. ">.", vim.log.levels.WARN)
+        return nil
+    end
+
+    return targets, tag_name
+end
+
+local function open_vf_controller()
+    local root = get_project_root_or_err()
+    if not root then return end
+
+    local targets = get_vf_targets()
+    if not targets then return end
+
+    if #targets == 1 then
+        local target = targets[1]
+        local matches = find_class_paths(root, target.name)
+
+        if #matches == 0 then
+            vim.notify(
+                string.format("No class file found for %s '%s'.", target.kind, target.name),
+                vim.log.levels.WARN
+            )
+            return
+        end
+
+        open_file_like_picker(matches)
+        return
+    end
+
+    vim.ui.select(targets, {
+        prompt = "Select Apex target:",
+        format_item = function(item)
+            return string.format("%s: %s", item.kind, item.name)
+        end,
+    }, function(choice)
+        if not choice then return end
+
+        local matches = find_class_paths(root, choice.name)
+        if #matches == 0 then
+            vim.notify(
+                string.format("No class file found for %s '%s'.", choice.kind, choice.name),
+                vim.log.levels.WARN
+            )
+            return
+        end
+
+        open_file_like_picker(matches)
+    end)
+end
+
 -- === Deploy ==================================================================
 local function deploy_current_file()
     local file = vim.fn.expand("%:p")
@@ -191,9 +396,6 @@ end
 
 -- === SfOut: export singleton output payload to a real file ====================
 
-local function join_path(a, b)
-    return (a:gsub("/$", "")) .. "/" .. (b:gsub("^/", ""))
-end
 
 local function project_file_or_err(root, relpath)
     local p = join_path(root, relpath)
@@ -565,6 +767,12 @@ end, { desc = 'SF: Write out-wrapper.json from PROD and open' })
 
 vim.api.nvim_create_user_command("SfOutPretty", sf_out_open_payload, {})
 vim.keymap.set("n", "<leader>sop", sf_out_open_payload, { desc = "SF: Open Payload__c" })
+
+vim.api.nvim_create_user_command("SfOpenVfController", open_vf_controller, {})
+
+vim.keymap.set("n", "<leader>vc", open_vf_controller, {
+    desc = "SF: Open [V]isualforce [C]ontroller",
+})
 
 return M
 
